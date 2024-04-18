@@ -83,6 +83,8 @@ add_library(acpp-clang SHARED
   ${REFLECTION_BUILTINS}
 )
 
+install(TARGETS acpp-clang DESTINATION lib COMPONENT ACPP)
+
 function(configure_target)
   set(options)
   set(one_value_keywords TARGET)
@@ -129,10 +131,11 @@ function(configure_target)
     target_link_libraries(${target} clang LLVMSupport)
   endif()
 
-  install(TARGETS ${target}
+  install(TARGETS ${target} COMPONENT ACPP
           LIBRARY DESTINATION lib
           RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION lib)
+          ARCHIVE DESTINATION lib
+          COMPONENT ACPP)
 endfunction(configure_target)
 
 configure_target(TARGET acpp-clang)

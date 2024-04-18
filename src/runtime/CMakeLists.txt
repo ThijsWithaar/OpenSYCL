@@ -90,12 +90,13 @@ if(is_ipo_supported)
   set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 
-install(TARGETS acpp-rt
+install(TARGETS acpp-rt COMPONENT ACPP
         EXPORT install_exports
         INCLUDES DESTINATION include/AdaptiveCpp
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        ARCHIVE DESTINATION lib
+        COMPONENT ACPP)
 
 set(CMAKE_INSTALL_RPATH ${base}/../ ${base}/llvm-to-backend)
 
@@ -129,10 +130,11 @@ if(WITH_CUDA_BACKEND)
     set_property(TARGET rt-backend-cuda PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  install(TARGETS rt-backend-cuda
+  install(TARGETS rt-backend-cuda COMPONENT ACPP
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        ARCHIVE DESTINATION lib/hipSYCL
+        COMPONENT ACPP)
 endif()
 
 if(WITH_ROCM_BACKEND)
@@ -175,10 +177,11 @@ if(WITH_ROCM_BACKEND)
     set_property(TARGET rt-backend-hip PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  install(TARGETS rt-backend-hip
+  install(TARGETS rt-backend-hip COMPONENT ACPP
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        ARCHIVE DESTINATION lib/hipSYCL
+        COMPONENT ACPP)
 endif()
 
 if(WITH_LEVEL_ZERO_BACKEND)
@@ -205,9 +208,10 @@ if(WITH_LEVEL_ZERO_BACKEND)
     set_property(TARGET rt-backend-ze PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  install(TARGETS rt-backend-ze
+  install(TARGETS rt-backend-ze COMPONENT ACPP
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        ARCHIVE DESTINATION lib/hipSYCL
+        COMPONENT ACPP)
 endif()
 
 if(WITH_OPENCL_BACKEND)
@@ -265,9 +269,10 @@ if(WITH_OPENCL_BACKEND)
     set_property(TARGET rt-backend-ocl PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  install(TARGETS rt-backend-ocl
+  install(TARGETS rt-backend-ocl COMPONENT ACPP
         LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        ARCHIVE DESTINATION lib/hipSYCL
+        COMPONENT ACPP)
 endif()
 
 if(WITH_CPU_BACKEND)
@@ -334,9 +339,10 @@ if(WITH_CPU_BACKEND)
     set_property(TARGET rt-backend-omp PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
   endif()
 
-  install(TARGETS rt-backend-omp
+  install(TARGETS rt-backend-omp COMPONENT ACPP
       RUNTIME DESTINATION bin/hipSYCL
       LIBRARY DESTINATION lib/hipSYCL
-      ARCHIVE DESTINATION lib/hipSYCL)
+      ARCHIVE DESTINATION lib/hipSYCL
+      COMPONENT ACPP)
 endif()
 

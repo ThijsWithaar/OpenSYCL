@@ -1,0 +1,32 @@
+FROM debian:trixie-20240722
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Disable the apt-cache
+RUN echo 'DPkg::Post-Invoke {"/bin/rm -f /var/cache/apt/archives/*.deb || true";};' | tee /etc/apt/apt.conf.d/00clean-cache-dir
+
+# Tools, development libraries, Intel's Level-Zero
+RUN sed -i -e "s/ main[[:space:]]*\$/ main contrib non-free/" /etc/apt/sources.list.d/debian.sources && \
+	apt update && \
+	apt -y install wget build-essential git lld cmake ninja-build pkg-config spirv-tools spirv-headers doxygen \
+	clang libclang-dev libomp-dev ocl-icd-opencl-dev \
+	libcurl4-openssl-dev zlib1g-dev libzstd-dev \
+	libboost-dev libboost-fiber-dev libboost-test-dev \
+	libze-dev
+
+# AMD ROCM (and clang-17)
+RUN wget -q https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | tee /usr/share/keyrings/rocm.gpg > /dev/null && \
+	echo "deb [arch=amd64 signed-by=/usr/share/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/6.1.3 jammy main" \
+		| tee --append /etc/apt/sources.list.d/rocm.list && \
+	apt update && apt -y install rocm-core hipcc
+
+# NVidia CUDA
+RUN wget -q https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64/3bf863cc.pub -O - | \
+		gpg --dearmor -o /usr/share/keyrings/nvidia-cuda.gpg && \
+	echo 'deb [signed-by=/usr/share/keyrings/nvidia-cuda.gpg] https://developer.download.nvidia.com/compute/cuda/repos/debian12/x86_64 /' \
+		| tee /etc/apt/sources.list.d/cuda.list && \
+	wget -q https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK -O - | \
+		gpg --dearmor -o /usr/share/keyrings/nvidia-hpcsdk.gpg && \
+	echo 'deb [signed-by=/usr/share/keyrings/nvidia-hpcsdk.gpg] https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64 /' \
+		| tee /etc/apt/sources.list.d/nvhpc.list && \
+	apt update && apt -y install cuda-toolkit nvhpc
+

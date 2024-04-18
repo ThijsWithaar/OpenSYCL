@@ -3,6 +3,8 @@ add_library(acpp-common SHARED
     filesystem.cpp
     appdb.cpp)
 
+install(TARGETS acpp-common DESTINATION lib COMPONENT ACPP)
+
 target_include_directories(acpp-common
   PUBLIC
     $<BUILD_INTERFACE:${HIPSYCL_SOURCE_DIR}/include>
@@ -45,9 +47,10 @@ else()
   endif()
 endif()
 
-install(TARGETS acpp-common
+install(TARGETS acpp-common COMPONENT ACPP
         EXPORT install_exports
         INCLUDES DESTINATION include/AdaptiveCpp
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        ARCHIVE DESTINATION lib
+        COMPONENT ACPP)
