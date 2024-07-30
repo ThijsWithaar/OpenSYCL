@@ -1,0 +1,63 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 138d3dd..ebf30c8 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -79,10 +79,10 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+ include(JoinPaths)
+ include(Package)
+ 
+-install(
+-  DIRECTORY include/CL
+-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+-)
++#install(
++#  DIRECTORY include/CL
++#  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++#)
+ export(
+   EXPORT OpenCLHeadersCppTargets
+   FILE ${PROJECT_BINARY_DIR}/OpenCLHeadersCpp/OpenCLHeadersCppTargets.cmake
+@@ -94,28 +94,28 @@ file(
+ )
+ 
+ set(config_package_location ${CMAKE_INSTALL_DATADIR}/cmake/OpenCLHeadersCpp)
+-install(
+-  EXPORT OpenCLHeadersCppTargets
+-  FILE OpenCLHeadersCppTargets.cmake
+-  NAMESPACE OpenCL::
+-  DESTINATION ${config_package_location}
+-)
+-install(
+-  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeadersCpp/OpenCLHeadersCppConfig.cmake
+-  DESTINATION ${config_package_location}
+-)
++#install(
++#  EXPORT OpenCLHeadersCppTargets
++#  FILE OpenCLHeadersCppTargets.cmake
++#  NAMESPACE OpenCL::
++#  DESTINATION ${config_package_location}
++#)
++#install(
++#  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeadersCpp/OpenCLHeadersCppConfig.cmake
++#  DESTINATION ${config_package_location}
++#)
+ 
+ unset(CMAKE_SIZEOF_VOID_P)
+-include(CMakePackageConfigHelpers)
++#include(CMakePackageConfigHelpers)
+ write_basic_package_version_file(
+   ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeadersCpp/OpenCLHeadersCppConfigVersion.cmake
+   VERSION ${PROJECT_VERSION}
+   COMPATIBILITY AnyNewerVersion
+ )
+-install(
+-  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeadersCpp/OpenCLHeadersCppConfigVersion.cmake
+-  DESTINATION ${config_package_location}
+-)
++#install(
++#  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeadersCpp/OpenCLHeadersCppConfigVersion.cmake
++#  DESTINATION ${config_package_location}
++#)
+ 
+ set(UNITY_DIR ${PROJECT_SOURCE_DIR}/external/CMock/vendor/unity CACHE PATH "Unity dir")
+ set(CMOCK_DIR ${PROJECT_SOURCE_DIR}/external/CMock CACHE PATH "CMock dir")

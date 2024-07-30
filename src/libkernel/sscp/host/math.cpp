@@ -8,7 +8,9 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
-#include <cmath>
+
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
 #include "hipSYCL/sycl/libkernel/sscp/builtins/math.hpp"
@@ -180,11 +182,19 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(lgamma)
 
 #if !defined(_WIN32) && !defined(__APPLE__)
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y ) {
+#if !defined(_MSC_VER)
   return lgammaf_r(x, y);
+#else
+  return NAN;
+#endif
 }
 
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int32* y) {
   return lgamma_r(x, y);
+#if !defined(_MSC_VER)
+#else
+  double res = NAN;
+#endif
 }
 #endif
 

@@ -115,7 +115,7 @@ multi_queue_executor::multi_queue_executor(
     for (std::size_t i = 0; i < memcpy_concurrency; ++i) {
       std::unique_ptr<inorder_queue> new_queue = queue_factory(dev_id);
       _managed_queues.push_back(new_queue.get());
-      _device_data[dev].executors.push_back(
+      _device_data[dev].add_executor(
           std::make_unique<inorder_executor>(std::move(new_queue)));
     }
 
@@ -125,7 +125,7 @@ multi_queue_executor::multi_queue_executor(
     for(std::size_t i  = 0; i < kernel_concurrency; ++i) {
       std::unique_ptr<inorder_queue> new_queue = queue_factory(dev_id);
       _managed_queues.push_back(new_queue.get());
-      _device_data[dev].executors.push_back(
+      _device_data[dev].add_executor(
           std::make_unique<inorder_executor>(std::move(new_queue)));
     }
 
@@ -139,7 +139,7 @@ multi_queue_executor::multi_queue_executor(
 
     _device_data[dev].submission_statistics = moving_statistics{
         max_statistics_size,
-        _device_data[dev].executors.size(),
+        _device_data[dev].executors_size(),
         static_cast<std::size_t>(1e9 * statistics_decay_time_sec)};
   }
 
@@ -215,9 +215,8 @@ void multi_queue_executor::submit_directly(
   _device_data[node->get_assigned_device().get_id()]
       .submission_statistics.insert(op_target_lane);
   
-  inorder_executor *executor = _device_data[node->get_assigned_device().get_id()]
-                         .executors[op_target_lane]
-                         .get();
+  inorder_executor* executor = _device_data[node->get_assigned_device().get_id()]
+      .executors_at(op_target_lane);
 
   HIPSYCL_DEBUG_INFO
       << "multi_queue_executor: Dispatching to lane " << op_target_lane << ": "

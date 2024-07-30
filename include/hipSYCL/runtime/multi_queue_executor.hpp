@@ -24,6 +24,12 @@
 #include "inorder_executor.hpp"
 #include "generic/multi_event.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -104,7 +110,7 @@ private:
 
 /// An executor that submits tasks by serializing them onto 
 /// to multiple inorder queues (e.g. CUDA streams)
-class multi_queue_executor : public backend_executor
+class ACPP_RT_EXPORT multi_queue_executor : public backend_executor
 {
 public:
   using queue_factory_function =
@@ -145,13 +151,55 @@ public:
 private:
   
 
-  struct per_device_data
+  struct ACPP_RT_EXPORT per_device_data
   {
+      per_device_data() = default;
+
+      per_device_data(const per_device_data& e)
+      {
+          assert(!"Not Implemented");
+          throw std::runtime_error("per_device_data = : Not Implemented");
+      }
+
+      per_device_data& operator=(const per_device_data& o) // = delete;
+      {
+          assert(!"Not Implemented");
+          throw std::runtime_error("per_device_data = : Not Implemented");
+          return *this;
+      }
+
+      per_device_data& operator=(per_device_data&& o)
+      {
+          return *this;
+      }
+
+      ~per_device_data()
+      {
+          for (auto& e : executors)
+              delete e;
+      }
+
     backend_execution_lane_range memcpy_lanes;
     backend_execution_lane_range kernel_lanes;
-    std::vector<std::unique_ptr<inorder_executor>> executors;
 
     moving_statistics submission_statistics;
+
+    void add_executor(std::unique_ptr<inorder_executor>&& e)
+    {
+        executors.emplace_back(e.release());
+    }
+
+    std::size_t executors_size() const
+    {
+        return executors.size();
+    }
+
+    inorder_executor* executors_at(std::size_t idx)
+    {
+        return executors.at(idx);
+    }
+  //private:
+      std::vector<inorder_executor*> executors;
   };
 
   std::vector<per_device_data> _device_data;

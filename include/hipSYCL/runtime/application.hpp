@@ -18,6 +18,13 @@
 #include "settings.hpp"
 #include "runtime_event_handlers.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
+
 namespace hipsycl {
 namespace rt {
 
@@ -25,8 +32,7 @@ class dag_manager;
 class runtime;
 class async_error_list;
 
-
-class application
+class ACPP_RT_EXPORT application
 {
 public:
   static settings& get_settings();
@@ -50,7 +56,7 @@ private:
   std::shared_ptr<runtime> _rt;
 };
 
-class runtime_keep_alive_token {
+class ACPP_RT_EXPORT runtime_keep_alive_token {
 public:
   runtime_keep_alive_token();
 

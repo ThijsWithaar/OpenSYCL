@@ -1,0 +1,413 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a8eb16b..8bb25a3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -22,6 +22,9 @@ endif (NOT DEFINED LLVM_SPIRV_BUILD_EXTERNAL)
+ if(LLVM_SPIRV_BUILD_EXTERNAL)
+   # Make sure llvm-spirv gets built when building outside the llvm tree.
+   set(LLVM_BUILD_TOOLS ON)
++  # Prevent the LLVM.cmake scripts from issueing an install command
++  # https://github.com/llvm/llvm-project/blob/main/llvm/cmake/modules/AddLLVM.cmake#L928
++  set(LLVM_INSTALL_TOOLCHAIN_ONLY ON)
+ endif(LLVM_SPIRV_BUILD_EXTERNAL)
+ 
+ # Download spirv.hpp from the official SPIRV-Headers repository.
+@@ -117,8 +120,8 @@ pkg_search_module(SPIRV_TOOLS SPIRV-Tools)
+ if (NOT SPIRV_TOOLS_FOUND)
+   # then try locating SPIRV-Tools via cmake (the new way)
+   find_package(SPIRV-Tools)
+-  find_package(SPIRV-Tools-tools)
+-  if (SPIRV-Tools_FOUND AND SPIRV-Tools-tools_FOUND)
++  #find_package(SPIRV-Tools-tools)
++  if (SPIRV-Tools_FOUND)
+     set(SPIRV_TOOLS_FOUND TRUE)
+     # check for the existance of library targets in the found packages
+     if(TARGET SPIRV-Tools-shared)
+@@ -154,7 +157,8 @@ install(
+     ${LLVM_SPIRV_INCLUDE_DIRS}/LLVMSPIRVOpts.h
+     ${LLVM_SPIRV_INCLUDE_DIRS}/LLVMSPIRVExtensions.inc
+   DESTINATION
+-    ${CMAKE_INSTALL_PREFIX}/include/LLVMSPIRVLib
++    ${LLVMSPIRV_RELATIVE_INSTALLDIR}/include/LLVMSPIRVLib
++  COMPONENT ACPP
+ )
+ 
+ configure_file(LLVMSPIRVLib.pc.in ${CMAKE_BINARY_DIR}/LLVMSPIRVLib.pc @ONLY)
+@@ -162,5 +166,6 @@ install(
+   FILES
+     ${CMAKE_BINARY_DIR}/LLVMSPIRVLib.pc
+   DESTINATION
+-    ${CMAKE_INSTALL_PREFIX}/lib${LLVM_LIBDIR_SUFFIX}/pkgconfig
++    ${LLVMSPIRV_RELATIVE_INSTALLDIR}/lib${LLVM_LIBDIR_SUFFIX}/pkgconfig
++  COMPONENT ACPP
+ )
+diff --git a/lib/SPIRV/SPIRVInternal.h b/lib/SPIRV/SPIRVInternal.h
+index 715bdd4..a597cf5 100644
+--- a/lib/SPIRV/SPIRVInternal.h
++++ b/lib/SPIRV/SPIRVInternal.h
+@@ -180,11 +180,11 @@ typedef SPIRVMap<Op, Op, IntBoolOpMapId> IntBoolOpMap;
+   "-v512:512:512-v1024:1024:1024"
+ 
+ enum SPIRAddressSpace {
+-  SPIRAS_Private,
++  SPIRAS_Generic,
+   SPIRAS_Global,
+   SPIRAS_Constant,
+   SPIRAS_Local,
+-  SPIRAS_Generic,
++  SPIRAS_Private,
+   SPIRAS_GlobalDevice,
+   SPIRAS_GlobalHost,
+   SPIRAS_Input,
+diff --git a/lib/SPIRV/SPIRVReader.cpp b/lib/SPIRV/SPIRVReader.cpp
+index b411b6c..df36fd1 100644
+--- a/lib/SPIRV/SPIRVReader.cpp
++++ b/lib/SPIRV/SPIRVReader.cpp
+@@ -315,8 +315,8 @@ std::optional<uint64_t> SPIRVToLLVM::getAlignment(SPIRVValue *V) {
+ Type *SPIRVToLLVM::transFPType(SPIRVType *T) {
+   switch (T->getFloatBitWidth()) {
+   case 16:
+-    if (T->isTypeFloat(16, FPEncodingBFloat16KHR))
+-      return Type::getBFloatTy(*Context);
++    // if (T->isTypeFloat(16, FPEncodingBFloat16KHR))
++    //   return Type::getBFloatTy(*Context);
+     return Type::getHalfTy(*Context);
+   case 32:
+     return Type::getFloatTy(*Context);
+@@ -1471,9 +1471,9 @@ Value *SPIRVToLLVM::transValueWithoutDecoration(SPIRVValue *BV, Function *F,
+       const llvm::fltSemantics *FS = nullptr;
+       switch (BT->getFloatBitWidth()) {
+       case 16:
+-        FS =
+-            (BT->isTypeFloat(16, FPEncodingBFloat16KHR) ? &APFloat::BFloat()
+-                                                        : &APFloat::IEEEhalf());
++        FS = &APFloat::IEEEhalf();
++        //    (BT->isTypeFloat(16, FPEncodingBFloat16KHR) ? &APFloat::BFloat():
++        //    &APFloat::IEEEhalf());
+         break;
+       case 32:
+         FS = &APFloat::IEEEsingle();
+@@ -4911,7 +4911,8 @@ bool SPIRVToLLVM::transVectorComputeMetadata(SPIRVFunction *BF) {
+     F->addFnAttr(Attr);
+   }
+ 
+-  if (auto *EM = BF->getExecutionMode(ExecutionModeSharedLocalMemorySizeINTEL)) {
++  if (auto *EM =
++          BF->getExecutionMode(ExecutionModeSharedLocalMemorySizeINTEL)) {
+     unsigned int SLMSize = EM->getLiterals()[0];
+     Attribute Attr = Attribute::get(*Context, kVCMetadata::VCSLMSize,
+                                     std::to_string(SLMSize));
+@@ -5032,10 +5033,7 @@ Instruction *SPIRVToLLVM::transOCLBuiltinFromExtInst(SPIRVExtInst *BC,
+   auto Args = transValue(BC->getArgValues(), F, BB);
+   SPIRVDBG(dbgs() << "[transOCLBuiltinFromExtInst] Function: " << *F
+                   << ", Args: ";
+-           for (auto &I
+-                : Args) dbgs()
+-           << *I << ", ";
+-           dbgs() << '\n');
++           for (auto &I : Args) dbgs() << *I << ", "; dbgs() << '\n');
+   CallInst *CI = CallInst::Create(F, Args, BC->getName(), BB);
+   setCallingConv(CI);
+   addFnAttr(CI, Attribute::NoUnwind);
+diff --git a/lib/SPIRV/SPIRVWriter.cpp b/lib/SPIRV/SPIRVWriter.cpp
+index 0bc0291..85c53e0 100644
+--- a/lib/SPIRV/SPIRVWriter.cpp
++++ b/lib/SPIRV/SPIRVWriter.cpp
+@@ -404,7 +404,7 @@ SPIRVType *LLVMToSPIRVBase::transType(Type *T) {
+         "SPV_KHR_bfloat16\n"
+         "NOTE: LLVM module contains bfloat type, translation of which "
+         "requires this extension");
+-    return mapType(T, BM->addFloatType(16, FPEncodingBFloat16KHR));
++    return {}; // mapType(T, BM->addFloatType(16, FPEncodingBFloat16KHR));
+   }
+ 
+   if (T->isFloatingPointTy())
+@@ -1960,7 +1960,7 @@ void transAliasingMemAccess(SPIRVModule *BM, MDNode *AliasingListMD,
+                             std::vector<uint32_t> &MemoryAccess,
+                             SPIRVWord MemAccessMask) {
+   if (!BM->isAllowedToUseExtension(
+-        ExtensionID::SPV_INTEL_memory_access_aliasing))
++          ExtensionID::SPV_INTEL_memory_access_aliasing))
+     return;
+   auto *MemAliasList = addMemAliasingINTELInstructions(BM, AliasingListMD);
+   if (!MemAliasList)
+@@ -3149,20 +3149,17 @@ bool LLVMToSPIRVBase::transAlign(Value *V, SPIRVValue *BV) {
+ void LLVMToSPIRVBase::transMemAliasingINTELDecorations(Instruction *Inst,
+                                                        SPIRVValue *BV) {
+   if (!BM->isAllowedToUseExtension(
+-         ExtensionID::SPV_INTEL_memory_access_aliasing))
++          ExtensionID::SPV_INTEL_memory_access_aliasing))
+     return;
+-  if (MDNode *AliasingListMD =
+-          Inst->getMetadata(LLVMContext::MD_alias_scope)) {
+-    auto *MemAliasList =
+-        addMemAliasingINTELInstructions(BM, AliasingListMD);
++  if (MDNode *AliasingListMD = Inst->getMetadata(LLVMContext::MD_alias_scope)) {
++    auto *MemAliasList = addMemAliasingINTELInstructions(BM, AliasingListMD);
+     if (!MemAliasList)
+       return;
+     BV->addDecorate(new SPIRVDecorateId(DecorationAliasScopeINTEL, BV,
+                                         MemAliasList->getId()));
+   }
+   if (MDNode *AliasingListMD = Inst->getMetadata(LLVMContext::MD_noalias)) {
+-    auto *MemAliasList =
+-        addMemAliasingINTELInstructions(BM, AliasingListMD);
++    auto *MemAliasList = addMemAliasingINTELInstructions(BM, AliasingListMD);
+     if (!MemAliasList)
+       return;
+     BV->addDecorate(
+@@ -4271,32 +4268,32 @@ SPIRVValue *LLVMToSPIRVBase::transIntrinsicInst(IntrinsicInst *II,
+   }
+   case Intrinsic::experimental_constrained_fadd: {
+     auto *BI = BM->addBinaryInst(OpFAdd, transType(II->getType()),
+-                                transValue(II->getArgOperand(0), BB),
+-                                transValue(II->getArgOperand(1), BB), BB);
++                                 transValue(II->getArgOperand(0), BB),
++                                 transValue(II->getArgOperand(1), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(2), BI);
+   }
+   case Intrinsic::experimental_constrained_fsub: {
+     auto *BI = BM->addBinaryInst(OpFSub, transType(II->getType()),
+-                                transValue(II->getArgOperand(0), BB),
+-                                transValue(II->getArgOperand(1), BB), BB);
++                                 transValue(II->getArgOperand(0), BB),
++                                 transValue(II->getArgOperand(1), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(2), BI);
+   }
+   case Intrinsic::experimental_constrained_fmul: {
+     auto *BI = BM->addBinaryInst(OpFMul, transType(II->getType()),
+-                                transValue(II->getArgOperand(0), BB),
+-                                transValue(II->getArgOperand(1), BB), BB);
++                                 transValue(II->getArgOperand(0), BB),
++                                 transValue(II->getArgOperand(1), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(2), BI);
+   }
+   case Intrinsic::experimental_constrained_fdiv: {
+     auto *BI = BM->addBinaryInst(OpFDiv, transType(II->getType()),
+-                                transValue(II->getArgOperand(0), BB),
+-                                transValue(II->getArgOperand(1), BB), BB);
++                                 transValue(II->getArgOperand(0), BB),
++                                 transValue(II->getArgOperand(1), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(2), BI);
+   }
+   case Intrinsic::experimental_constrained_frem: {
+     auto *BI = BM->addBinaryInst(OpFRem, transType(II->getType()),
+-                                transValue(II->getArgOperand(0), BB),
+-                                transValue(II->getArgOperand(1), BB), BB);
++                                 transValue(II->getArgOperand(0), BB),
++                                 transValue(II->getArgOperand(1), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(2), BI);
+   }
+   case Intrinsic::experimental_constrained_fma: {
+@@ -4304,8 +4301,8 @@ SPIRVValue *LLVMToSPIRVBase::transIntrinsicInst(IntrinsicInst *II,
+                                    transValue(II->getArgOperand(1), BB),
+                                    transValue(II->getArgOperand(2), BB)};
+     auto *BI = BM->addExtInst(transType(II->getType()),
+-                             BM->getExtInstSetId(SPIRVEIS_OpenCL),
+-                             OpenCLLIB::Fma, Args, BB);
++                              BM->getExtInstSetId(SPIRVEIS_OpenCL),
++                              OpenCLLIB::Fma, Args, BB);
+     return applyRoundingModeConstraint(II->getOperand(3), BI);
+   }
+   case Intrinsic::experimental_constrained_fptoui: {
+@@ -4318,12 +4315,12 @@ SPIRVValue *LLVMToSPIRVBase::transIntrinsicInst(IntrinsicInst *II,
+   }
+   case Intrinsic::experimental_constrained_uitofp: {
+     auto *BI = BM->addUnaryInst(OpConvertUToF, transType(II->getType()),
+-                               transValue(II->getArgOperand(0), BB), BB);
++                                transValue(II->getArgOperand(0), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(1), BI);
+   }
+   case Intrinsic::experimental_constrained_sitofp: {
+     auto *BI = BM->addUnaryInst(OpConvertSToF, transType(II->getType()),
+-                               transValue(II->getArgOperand(0), BB), BB);
++                                transValue(II->getArgOperand(0), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(1), BI);
+   }
+   case Intrinsic::experimental_constrained_fpext: {
+@@ -4332,7 +4329,7 @@ SPIRVValue *LLVMToSPIRVBase::transIntrinsicInst(IntrinsicInst *II,
+   }
+   case Intrinsic::experimental_constrained_fptrunc: {
+     auto *BI = BM->addUnaryInst(OpFConvert, transType(II->getType()),
+-                               transValue(II->getArgOperand(0), BB), BB);
++                                transValue(II->getArgOperand(0), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(1), BI);
+   }
+   case Intrinsic::experimental_constrained_fcmp:
+@@ -4365,7 +4362,7 @@ SPIRVValue *LLVMToSPIRVBase::transIntrinsicInst(IntrinsicInst *II,
+         BM->addBinaryInst(OpFMul, Ty, transValue(II->getArgOperand(0), BB),
+                           transValue(II->getArgOperand(1), BB), BB);
+     auto *BI = BM->addBinaryInst(OpFAdd, Ty, Mul,
+-                                transValue(II->getArgOperand(2), BB), BB);
++                                 transValue(II->getArgOperand(2), BB), BB);
+     return applyRoundingModeConstraint(II->getOperand(3), BI);
+   }
+   case Intrinsic::fmuladd: {
+@@ -5078,8 +5075,8 @@ SPIRVValue *LLVMToSPIRVBase::transIntrinsicInst(IntrinsicInst *II,
+     else
+       // Other LLVM intrinsics shouldn't get to SPIRV, because they
+       // can't be represented in SPIRV or aren't implemented yet.
+-      BM->SPIRVCK(
+-          false, InvalidFunctionCall, II->getCalledOperand()->getName().str());
++      BM->SPIRVCK(false, InvalidFunctionCall,
++                  II->getCalledOperand()->getName().str());
+   }
+   return nullptr;
+ }
+diff --git a/lib/SPIRV/libSPIRV/SPIRVEnum.h b/lib/SPIRV/libSPIRV/SPIRVEnum.h
+index 4627532..45d7d8d 100644
+--- a/lib/SPIRV/libSPIRV/SPIRVEnum.h
++++ b/lib/SPIRV/libSPIRV/SPIRVEnum.h
+@@ -221,9 +221,9 @@ template <> inline void SPIRVMap<SPIRVCapabilityKind, SPIRVCapVec>::init() {
+                {CapabilityCooperativeMatrixKHR});
+   ADD_VEC_INIT(internal::CapabilityCooperativeMatrixCheckedInstructionsINTEL,
+                {CapabilityCooperativeMatrixKHR});
+-  ADD_VEC_INIT(CapabilityBFloat16DotProductKHR, {CapabilityBFloat16TypeKHR});
+-  ADD_VEC_INIT(CapabilityBFloat16CooperativeMatrixKHR,
+-               {CapabilityBFloat16TypeKHR, CapabilityCooperativeMatrixKHR});
++  // ADD_VEC_INIT(CapabilityBFloat16DotProductKHR, {CapabilityBFloat16TypeKHR});
++  // ADD_VEC_INIT(CapabilityBFloat16CooperativeMatrixKHR,
++  // {CapabilityBFloat16TypeKHR, CapabilityCooperativeMatrixKHR});
+ }
+ 
+ template <> inline void SPIRVMap<SPIRVExecutionModelKind, SPIRVCapVec>::init() {
+diff --git a/lib/SPIRV/libSPIRV/SPIRVInstruction.h b/lib/SPIRV/libSPIRV/SPIRVInstruction.h
+index ce03d90..dd7ca51 100644
+--- a/lib/SPIRV/libSPIRV/SPIRVInstruction.h
++++ b/lib/SPIRV/libSPIRV/SPIRVInstruction.h
+@@ -327,9 +327,7 @@ public:
+     return getOpValue(I);
+   }
+ 
+-  virtual SPIRVValue *getOperand(unsigned I) {
+-    return getOpValue(I);
+-  }
++  virtual SPIRVValue *getOperand(unsigned I) { return getOpValue(I); }
+ 
+   bool hasExecScope() const { return SPIRV::hasExecScope(OpCode); }
+ 
+@@ -415,12 +413,12 @@ public:
+     }
+     if (MemoryAccess[0] & MemoryAccessAliasScopeINTELMaskMask) {
+       assert(MemoryAccess.size() > MemAccessNumParam &&
+-          "Aliasing operand is missing");
++             "Aliasing operand is missing");
+       AliasScopeInstID = MemoryAccess[MemAccessNumParam++];
+     }
+     if (MemoryAccess[0] & MemoryAccessNoAliasINTELMaskMask) {
+       assert(MemoryAccess.size() > MemAccessNumParam &&
+-          "Aliasing operand is missing");
++             "Aliasing operand is missing");
+       NoAliasInstID = MemoryAccess[MemAccessNumParam++];
+     }
+ 
+@@ -701,9 +699,9 @@ protected:
+       const SPIRVType *OpTy = getValueType(Ops[0]);
+       if (OpTy && OpTy->isTypeVector()) {
+         OpTy = OpTy->getVectorComponentType();
+-        if (OpTy && OpTy->isTypeFloat(16, FPEncodingBFloat16KHR)) {
+-          return getVec(CapabilityBFloat16DotProductKHR);
+-        }
++        // if (OpTy && OpTy->isTypeFloat(16, FPEncodingBFloat16KHR)) {
++        //   return getVec(CapabilityBFloat16DotProductKHR);
++        // }
+       }
+     }
+     return SPIRVInstruction::getRequiredCapability();
+@@ -4233,7 +4231,7 @@ public:
+     return ExtensionID::SPV_INTEL_ternary_bitwise_function;
+   }
+   SPIRVCapVec getRequiredCapability() const override {
+-    return getVec(CapabilityTernaryBitwiseFunctionINTEL);
++    return {}; // getVec(CapabilityTernaryBitwiseFunctionINTEL);
+   }
+ };
+ 
+@@ -4241,7 +4239,7 @@ public:
+   typedef SPIRVInstTemplate<SPIRVTernaryBitwiseFunctionINTELInst,              \
+                             Op##x##INTEL, __VA_ARGS__>                         \
+       SPIRV##x##INTEL;
+-_SPIRV_OP(BitwiseFunction, true, 7)
++//_SPIRV_OP(BitwiseFunction, true, 7)
+ #undef _SPIRV_OP
+ 
+ } // namespace SPIRV
+diff --git a/lib/SPIRV/libSPIRV/SPIRVNameMapEnum.h b/lib/SPIRV/libSPIRV/SPIRVNameMapEnum.h
+index 5abe3e9..780a579 100644
+--- a/lib/SPIRV/libSPIRV/SPIRVNameMapEnum.h
++++ b/lib/SPIRV/libSPIRV/SPIRVNameMapEnum.h
+@@ -640,17 +640,18 @@ template <> inline void SPIRVMap<Capability, std::string>::init() {
+   add(CapabilityFPMaxErrorINTEL, "FPMaxErrorINTEL");
+   add(CapabilityCacheControlsINTEL, "CacheControlsINTEL");
+   add(CapabilityRegisterLimitsINTEL, "RegisterLimitsINTEL");
+-  add(CapabilityBFloat16TypeKHR, "BFloat16TypeKHR");
+-  add(CapabilityBFloat16DotProductKHR, "BFloat16DotProductKHR");
+-  add(CapabilityBFloat16CooperativeMatrixKHR, "BFloat16CooperativeMatrixKHR");
++  // add(CapabilityBFloat16TypeKHR, "BFloat16TypeKHR");
++  // add(CapabilityBFloat16DotProductKHR, "BFloat16DotProductKHR");
++  // add(CapabilityBFloat16CooperativeMatrixKHR,
++  // "BFloat16CooperativeMatrixKHR");
+   add(CapabilityArithmeticFenceEXT, "ArithmeticFenceEXT");
+   add(CapabilitySubgroup2DBlockIOINTEL, "Subgroup2DBlockIOINTEL");
+   add(CapabilitySubgroup2DBlockTransformINTEL, "Subgroup2DBlockTransformINTEL");
+   add(CapabilitySubgroup2DBlockTransposeINTEL, "Subgroup2DBlockTransposeINTEL");
+   add(CapabilitySubgroupMatrixMultiplyAccumulateINTEL,
+       "SubgroupMatrixMultiplyAccumulateINTEL");
+-  add(CapabilityTernaryBitwiseFunctionINTEL, "TernaryBitwiseFunctionINTEL");
+-  // From spirv_internal.hpp
++  // add(CapabilityTernaryBitwiseFunctionINTEL, "TernaryBitwiseFunctionINTEL");
++  //  From spirv_internal.hpp
+   add(internal::CapabilityFastCompositeINTEL, "FastCompositeINTEL");
+   add(internal::CapabilityTokenTypeINTEL, "TokenTypeINTEL");
+   add(internal::CapabilityBfloat16ConversionINTEL, "Bfloat16ConversionINTEL");
+diff --git a/lib/SPIRV/libSPIRV/SPIRVOpCodeEnum.h b/lib/SPIRV/libSPIRV/SPIRVOpCodeEnum.h
+index 6c8a3d9..5a15f8d 100644
+--- a/lib/SPIRV/libSPIRV/SPIRVOpCodeEnum.h
++++ b/lib/SPIRV/libSPIRV/SPIRVOpCodeEnum.h
+@@ -570,7 +570,7 @@ _SPIRV_OP(Subgroup2DBlockLoadTransposeINTEL, 6233)
+ _SPIRV_OP(Subgroup2DBlockPrefetchINTEL, 6234)
+ _SPIRV_OP(Subgroup2DBlockStoreINTEL, 6235)
+ _SPIRV_OP(SubgroupMatrixMultiplyAccumulateINTEL, 6237)
+-_SPIRV_OP(BitwiseFunctionINTEL, 6242)
++//_SPIRV_OP(BitwiseFunctionINTEL, 6242)
+ _SPIRV_OP(GroupIMulKHR, 6401)
+ _SPIRV_OP(GroupFMulKHR, 6402)
+ _SPIRV_OP(GroupBitwiseAndKHR, 6403)
+diff --git a/lib/SPIRV/libSPIRV/SPIRVType.h b/lib/SPIRV/libSPIRV/SPIRVType.h
+index 40c4d98..82e6d2b 100644
+--- a/lib/SPIRV/libSPIRV/SPIRVType.h
++++ b/lib/SPIRV/libSPIRV/SPIRVType.h
+@@ -218,16 +218,17 @@ public:
+   unsigned getFloatingPointEncoding() const { return FloatingPointEncoding; }
+ 
+   std::optional<ExtensionID> getRequiredExtension() const override {
+-    if (isTypeFloat(16, FPEncodingBFloat16KHR))
+-      return ExtensionID::SPV_KHR_bfloat16;
++    // if (isTypeFloat(16, FPEncodingBFloat16KHR))
++    //   return ExtensionID::SPV_KHR_bfloat16;
+     return {};
+   }
+ 
+   SPIRVCapVec getRequiredCapability() const override {
+     SPIRVCapVec CV;
+-    if (isTypeFloat(16, FPEncodingBFloat16KHR)) {
+-      CV.push_back(CapabilityBFloat16TypeKHR);
+-    } else if (isTypeFloat(16)) {
++    // if (isTypeFloat(16, FPEncodingBFloat16KHR)) {
++    //   CV.push_back(CapabilityBFloat16TypeKHR);
++    // } else
++    if (isTypeFloat(16)) {
+       CV.push_back(CapabilityFloat16Buffer);
+       auto Extensions = getModule()->getSourceExtension();
+       if (std::any_of(Extensions.begin(), Extensions.end(),
+@@ -1180,8 +1181,8 @@ public:
+   }
+   SPIRVCapVec getRequiredCapability() const override {
+     auto CV = getVec(CapabilityCooperativeMatrixKHR);
+-    if (CompType->isTypeFloat(16, FPEncodingBFloat16KHR))
+-      CV.push_back(CapabilityBFloat16CooperativeMatrixKHR);
++    // if (CompType->isTypeFloat(16, FPEncodingBFloat16KHR))
++    //   CV.push_back(CapabilityBFloat16CooperativeMatrixKHR);
+     return CV;
+   }
+ 

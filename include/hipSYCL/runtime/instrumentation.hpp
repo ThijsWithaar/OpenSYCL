@@ -21,6 +21,12 @@
 
 #include "signal_channel.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -63,7 +69,7 @@ template<typename T>
 inline constexpr bool is_instrumentation_v
     = std::is_convertible_v<std::remove_cv_t<T> *, instrumentation *>;
 
-class instrumentation_set {
+class ACPP_RT_EXPORT instrumentation_set {
 public:
   instrumentation_set()
   : _registration_complete{false} {}

@@ -5,6 +5,7 @@
 
 #pragma once
 
+
 #include "bitcasts.h"
 #include "hipSYCL/sycl/libkernel/detail/int_types.hpp"
 

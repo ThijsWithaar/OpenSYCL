@@ -16,6 +16,11 @@
 #include "operations.hpp"
 #include "hints.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
 
 namespace hipsycl {
 namespace rt {
@@ -27,7 +32,7 @@ struct backend_execution_lane_range
   std::size_t num_lanes;
 };
 
-class backend_executor
+class ACPP_RT_EXPORT backend_executor
 {
 public:
 

@@ -37,7 +37,6 @@ namespace compiler {
 
 namespace {
 
-
 llvm::GlobalVariable *setGlobalVariableAddressSpace(llvm::Module &M, llvm::GlobalVariable *GV,
                                                     unsigned AS) {
   assert(GV);
@@ -78,7 +77,6 @@ void forEachUseOfPointerValue(llvm::Value* V, F&& handler) {
 }
 
 } // anonymous namespace
-
 
 AddressSpaceInferencePass::AddressSpaceInferencePass(const AddressSpaceMap &Map) : ASMap{Map} {}
 

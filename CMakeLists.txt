@@ -24,6 +24,20 @@ execute_process(
         RESULT_VARIABLE GIT_STATUS
 )
 
+if(WIN32)
+    # Two methods to export symbols to a .dll: export all, or specific ones
+    #set(CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS 1)
+    if(FALSE) #CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS)
+        #add_compile_definitions(ACPP_RT_EXPORT)
+    else()
+        set(ACPP_GENERATE_EXPORT_HEADERS On)
+        add_compile_definitions(ACPP_GENERATE_EXPORT_HEADERS)
+    endif()
+    add_compile_options("/arch:AVX2")
+    add_compile_definitions(NOMINMAX)
+    add_definitions("/wd4996 /wd4267 /wd4244 /wd4305 /wd4018 /wd4251")
+endif()
+
 if(NOT ACPP_VERSION_SUFFIX)
   # With a release tarball, "git status" will fail (return non zero)
   if(GIT_STATUS)
@@ -304,7 +318,9 @@ if(BUILD_CLANG_PLUGIN)
     message(STATUS "Building AdaptiveCpp against LLVM configured from ${LLVM_DIR}")
     #find_package(Clang REQUIRED)
 
-    find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
+  message(NOTICE "## LLVM_TOOLS_BINARY_DIR ${LLVM_TOOLS_BINARY_DIR}")
+  find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ clang++.exe HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
+  message(NOTICE "## CLANG_EXECUTABLE_PATH ${CLANG_EXECUTABLE_PATH}")
     if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
       find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
       if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
@@ -338,6 +354,7 @@ if(BUILD_CLANG_PLUGIN)
       ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
       ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}/include
       ${LLVM_PREFIX_DIR}/lib64/clang/${LLVM_VERSION_MAJOR}/include
+    ${LLVM_PREFIX_DIR}/llvm/lib/clang/${LLVM_VERSION_MAJOR}/include
       DOC "Path to internal clang headers. Typically, $LLVM_INSTALL_PREFIX/include/clang/<llvm-version>/include")
 
     if(EXISTS ${FOUND_CLANG_INCLUDE_PATH})
@@ -691,6 +708,8 @@ endif()
 
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 set(ACPP_CORE_CONFIG_FILE "{
   \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
@@ -735,14 +754,20 @@ set(ACPP_ROCM_CONFIG_FILE "{
 }
 ")
 
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-core.json ${ACPP_CORE_CONFIG_FILE})
+# The destination path is different between 'cmake install' and CPack,
+# and only known when the install script is run.
+# Prepare all files in ${PROJECT_BINARY_DIR}/etc, then copy them over with an install script
+file(WRITE "${PROJECT_BINARY_DIR}/etc/AdaptiveCpp/acpp-core.json" "${ACPP_CORE_CONFIG_FILE}")
 if(WITH_CUDA_BACKEND)
-  file(WRITE ${ACPP_BINARY_ROOT}/acpp-cuda.json ${ACPP_CUDA_CONFIG_FILE})
+  file(WRITE "${PROJECT_BINARY_DIR}/etc/AdaptiveCpp/acpp-cuda.json" "${ACPP_CUDA_CONFIG_FILE}")
 endif()
 if(WITH_ROCM_BACKEND)
-  file(WRITE ${ACPP_BINARY_ROOT}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
+  file(WRITE "${PROJECT_BINARY_DIR}/etc/AdaptiveCpp/acpp-rocm.json" "${ACPP_ROCM_CONFIG_FILE}")
 endif()
-
+# Inject variables into the script:
+install(CODE "set(PROJECT_BINARY_DIR \"${PROJECT_BINARY_DIR}\")")
+install(CODE "set(CMAKE_COMMAND \"${CMAKE_COMMAND}\")")
+install(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/InstallSysconf.cmake)
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -777,12 +802,12 @@ configure_file(
 
 
 
-install(DIRECTORY include/CL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/SYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
-
-install(DIRECTORY include/hipSYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
-install(DIRECTORY include/hipSYCL DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY include/hipSYCL/std DESTINATION include/AdaptiveCpp/hipSYCL/ )
+install(DIRECTORY include/CL COMPONENT ACPP DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/SYCL COMPONENT ACPP DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL COMPONENT ACPP DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.hpp")
+install(DIRECTORY include/hipSYCL COMPONENT ACPP DESTINATION include/AdaptiveCpp/ FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY include/hipSYCL/std COMPONENT ACPP DESTINATION include/AdaptiveCpp/hipSYCL/)
+install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp COMPONENT ACPP DESTINATION include/AdaptiveCpp/hipSYCL/common/)
 
 install(FILES ${ACPP_BINARY_ROOT}/include/hipSYCL/common/config.hpp DESTINATION include/AdaptiveCpp/hipSYCL/common/)
 install(FILES ${ACPP_BINARY_ROOT}/include/hipSYCL/pcuda/detail/cuda_prefixed_runtime.hpp DESTINATION include/AdaptiveCpp/hipSYCL/pcuda/detail/)
@@ -799,26 +824,17 @@ install(FILES ${ACPP_BINARY_ROOT}/include/hipSYCL/pcuda/detail/hip_prefixed_runt
 
 
 if(NOT WIN32)
-# Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
-# we already have SYCL/sycl.hpp
-install(FILES include/SYCL/sycl.hpp DESTINATION include/AdaptiveCpp/sycl/)
+  # Windows is case-insensitive, so don't copy to sycl/sycl.hpp as we already have SYCL/sycl.hpp
+  install(FILES include/SYCL/sycl.hpp COMPONENT ACPP DESTINATION include/AdaptiveCpp/sycl/)
+  # These scripts don't work under windows:
+  install(PROGRAMS bin/acpp DESTINATION bin)
+  install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
+  install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 endif()
-install(PROGRAMS bin/acpp DESTINATION bin)
-install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
-install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
-
-install(FILES ${ACPP_BINARY_ROOT}/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-if(WITH_CUDA_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-if(WITH_ROCM_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
 
 include(CMakePackageConfigHelpers)
 include(GNUInstallDirs)
-
 
 
 # Legacy module (hipSYCL)
@@ -834,8 +850,8 @@ set(HIPSYCL_INSTALL_COMPILER_DIR bin)
 set(HIPSYCL_INSTALL_LAUNCHER_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 set(HIPSYCL_INSTALL_LAUNCHER_RULE_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 
-install(PROGRAMS cmake/syclcc-launcher DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
-install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launcher COMPONENT ACPP DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in COMPONENT ACPP DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR})
 
 write_basic_package_version_file(
   "${ACPP_BINARY_ROOT}/hipsycl-config-version.cmake"
@@ -857,12 +873,14 @@ install(FILES
   ${ACPP_BINARY_ROOT}/hipsycl-config.cmake
   ${ACPP_BINARY_ROOT}/hipsycl-config-version.cmake
   DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+  COMPONENT ACPP
 )
 
 install(EXPORT install_exports
   FILE "hipsycl-targets.cmake"
   NAMESPACE hipSYCL::
   DESTINATION ${HIPSYCL_INSTALL_CMAKE_DIR}
+  COMPONENT ACPP
 )
 
 mark_as_advanced(
@@ -882,8 +900,8 @@ set(OPENSYCL_INSTALL_COMPILER_DIR bin)
 set(OPENSYCL_INSTALL_LAUNCHER_DIR ${OPENSYCL_INSTALL_CMAKE_DIR})
 set(OPENSYCL_INSTALL_LAUNCHER_RULE_DIR ${OPENSYCL_INSTALL_CMAKE_DIR})
 
-install(PROGRAMS cmake/syclcc-launcher DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR})
-install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launcher COMPONENT ACPP DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in COMPONENT ACPP DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR})
 
 write_basic_package_version_file(
   "${ACPP_BINARY_ROOT}/opensycl-config-version.cmake"
@@ -905,20 +923,43 @@ install(FILES
   ${ACPP_BINARY_ROOT}/opensycl-config.cmake
   ${ACPP_BINARY_ROOT}/opensycl-config-version.cmake
   DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR}
+  COMPONENT ACPP
 )
 
 install(EXPORT install_exports
   FILE "opensycl-targets.cmake"
   NAMESPACE OpenSYCL::
   DESTINATION ${OPENSYCL_INSTALL_CMAKE_DIR}
+  COMPONENT ACPP
 )
 
 mark_as_advanced(
   OPENSYCL_INSTALL_CMAKE_DIR
 )
 
-# New module
+set(CPACK_PACKAGE_CONTACT aksel.alpay@uni-heidelberg.de)
+if(UNIX)
+	cmake_host_system_information(RESULT DISTRO QUERY DISTRIB_INFO)
+	foreach(VAR IN LISTS DISTRO)
+		message(STATUS "${VAR}=`${${VAR}}`")
+	endforeach()
+	set(CPACK_SYSTEM_NAME "${DISTRO_ID}-${DISTRO_VERSION_CODENAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}")
+	if(EXISTS /etc/fedora-release)
+		set(CPACK_GENERATOR "RPM" CACHE STRING "Package format")
+	endif()
+	if(DISTRO_ID STREQUAL "openSUSE")
+		set(CPACK_GENERATOR "RPM" CACHE STRING "Package format")
+	endif()
+	if(EXISTS /etc/debian_version)
+		set(CPACK_GENERATOR "DEB" CACHE STRING "Package format")
+    set(CPACK_DEB_COMPONENT_INSTALL FALSE)
+	endif()
+endif()
+include(CPack)
+cpack_add_component(SPIRV)
+cpack_add_component(ACPP)
 
+# New module
 
 set(ADAPTIVECPP_INSTALL_CMAKE_DIR
   "lib/cmake/AdaptiveCpp" CACHE PATH "Install path for CMake config files")
@@ -930,8 +971,8 @@ set(ADAPTIVECPP_INSTALL_COMPILER_DIR bin)
 set(ADAPTIVECPP_INSTALL_LAUNCHER_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
 set(ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
 
-install(PROGRAMS cmake/syclcc-launcher DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
-install(PROGRAMS cmake/syclcc-launch.rule.in DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launcher COMPONENT ACPP DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
+install(PROGRAMS cmake/syclcc-launch.rule.in COMPONENT ACPP DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
 
 write_basic_package_version_file(
   "${ACPP_BINARY_ROOT}/adaptivecpp-config-version.cmake"
@@ -952,12 +993,14 @@ configure_package_config_file(
 install(FILES
   ${ACPP_BINARY_ROOT}/adaptivecpp-config.cmake
   ${ACPP_BINARY_ROOT}/adaptivecpp-config-version.cmake
+  COMPONENT ACPP
   DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
 )
 
 install(EXPORT install_exports
   FILE "adaptivecpp-targets.cmake"
   NAMESPACE AdaptiveCpp::
+  COMPONENT ACPP
   DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
 )
 

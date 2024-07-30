@@ -18,6 +18,12 @@
 #include "event.hpp"
 #include "hipSYCL/common/small_vector.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 
 namespace hipsycl {
 namespace rt {
@@ -34,7 +40,7 @@ using dag_node_ptr = std::shared_ptr<dag_node>;
 using node_list_t = common::small_vector<dag_node_ptr, 8>;
 using weak_node_list_t = common::small_vector<std::weak_ptr<dag_node>, 8>;
 
-class dag_node
+class ACPP_RT_EXPORT dag_node
 {
 public:
   dag_node(const execution_hints& hints,

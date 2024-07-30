@@ -1,0 +1,70 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1b20774..c2f30cb 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -17,7 +17,7 @@ option(OPENCL_HEADERS_BUILD_CXX_TESTS "Enable support for OpenCL C headers testi
+ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+ include(GNUInstallDirs)
+ include(JoinPaths)
+-include(Package)
++#include(Package)
+ 
+ add_library(Headers INTERFACE)
+ add_library(OpenCL::Headers ALIAS Headers)
+@@ -50,10 +50,10 @@ install(
+   TARGETS Headers
+   EXPORT OpenCLHeadersTargets
+ )
+-install(
+-  DIRECTORY CL
+-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+-)
++#install(
++#  DIRECTORY CL
++#  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++#)
+ 
+ export(
+   EXPORT OpenCLHeadersTargets
+@@ -66,16 +66,16 @@ file(
+ )
+ 
+ set(config_package_location ${CMAKE_INSTALL_DATADIR}/cmake/OpenCLHeaders)
+-install(
+-  EXPORT OpenCLHeadersTargets
+-  FILE OpenCLHeadersTargets.cmake
+-  NAMESPACE OpenCL::
+-  DESTINATION ${config_package_location}
+-)
+-install(
+-  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeaders/OpenCLHeadersConfig.cmake
+-  DESTINATION ${config_package_location}
+-)
++#install(
++#  EXPORT OpenCLHeadersTargets
++#  FILE OpenCLHeadersTargets.cmake
++#  NAMESPACE OpenCL::
++#  DESTINATION ${config_package_location}
++#)
++#install(
++#  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeaders/OpenCLHeadersConfig.cmake
++#  DESTINATION ${config_package_location}
++#)
+ 
+ unset(CMAKE_SIZEOF_VOID_P)
+ include(CMakePackageConfigHelpers)
+@@ -84,10 +84,10 @@ write_basic_package_version_file(
+   VERSION ${PROJECT_VERSION}
+   COMPATIBILITY AnyNewerVersion
+ )
+-install(
+-  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeaders/OpenCLHeadersConfigVersion.cmake
+-  DESTINATION ${config_package_location}
+-)
++#install(
++#  FILES ${CMAKE_CURRENT_BINARY_DIR}/OpenCLHeaders/OpenCLHeadersConfigVersion.cmake
++#  DESTINATION ${config_package_location}
++#)
+ 
+ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR OPENCL_HEADERS_BUILD_TESTING)
+   include(CTest)

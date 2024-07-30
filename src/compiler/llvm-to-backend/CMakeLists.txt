@@ -31,27 +31,27 @@ function(create_llvm_based_library)
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-
+  
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   target_compile_definitions(${target} PRIVATE
     ${LLVM_DEFINITIONS_LIST})
   target_compile_definitions(${target} PRIVATE -DHIPSYCL_COMPILER_COMPONENT)
-
-  if(NOT ACPP_LLVM_COMPONENT)
-    find_library(LLVM_LIBRARY NAMES LLVM LLVM-${LLVM_VERSION_MAJOR} HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
-    if(NOT LLVM_LIBRARY)
-      message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Disable advanced compiler-based functionality (-DACPP_COMPILER_FEATURE_PROFILE=minimal, not recommended for most use cases) or choose another LLVM installation")
-    endif()
-  elseif(NOT LLVM_BUILD_LLVM_DYLIB AND NOT WIN32)
-    message(FATAL_ERROR "LLVM is not configured to build libLLVM.so. Please disable reconfigure with LLVM_BUILD_LLVM_DYLIB and LLVM_LINK_LLVM_DYLIB.")
-  endif()
-  if(WIN32)
-    llvm_config(${target} core support irreader passes)
+  if(DEFINED VCPKG_TARGET_TRIPLET)
+    find_package(LLVM CONFIG REQUIRED)
+    llvm_map_components_to_libnames(llvm_libs Core Support IRReader Passes)
+    target_link_libraries(${target} PRIVATE ${llvm_libs})
   else()
-    llvm_config(${target} USE_SHARED core support irreader passes)
+      find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
+      if(NOT LLVM_LIBRARY)
+      message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Disable advanced compiler-based functionality (-DACPP_COMPILER_FEATURE_PROFILE=minimal, not recommended for most use cases) or choose another LLVM installation")
+        message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
+      endif()
+      llvm_config(${target} USE_SHARED core support irreader passes)
   endif()
   # We need symbolic functions for stdpar
   target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
+
+  install(TARGETS ${target} COMPONENT ACPP DESTINATION lib/hipSYCL/llvm-to-backend)
 
   if(ACPP_LLVM_COMPONENT)
     add_dependencies(${target} intrinsics_gen)
@@ -112,7 +112,7 @@ function(create_llvm_to_backend_tool)
   target_link_libraries(${target}-tool PRIVATE ${target})
 
   set(install_subdir hipSYCL/llvm-to-backend)
-  install(TARGETS ${target}-tool
+  install(TARGETS ${target}-tool COMPONENT ACPP
     RUNTIME DESTINATION bin/${install_subdir}
     LIBRARY DESTINATION lib/${install_subdir}
     ARCHIVE DESTINATION lib/${install_subdir})
@@ -181,29 +181,30 @@ if(WITH_SSCP_COMPILER)
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
     set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/llvm-spirv)
 
-    ExternalProject_Add(LLVMSpirvTranslator
-      GIT_REPOSITORY https://github.com/AdaptiveCpp/SPIRV-LLVM-Translator
+    include(FetchContent)
+    FetchContent_Declare(LLVMSpirvTranslator
+      GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-LLVM-Translator
       GIT_TAG origin/${LLVMSPIRV_BRANCH}
       GIT_SHALLOW ON
-      GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
-      BUILD_ALWAYS OFF
-      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
-      CMAKE_ARGS
-        -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
-        -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
-      CMAKE_CACHE_ARGS
-        -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
-        -DLLVM_DIR:PATH=${LLVM_DIR}
-        -DCMAKE_INSTALL_PREFIX:PATH=${LLVMSPIRV_INSTALLDIR}
-        -DCMAKE_CXX_FLAGS:STRING=${CMAKE_CXX_FLAGS}
-      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --target install
     )
 
-    add_dependencies(llvm-to-spirv LLVMSpirvTranslator)
+    FetchContent_GetProperties(LLVMSpirvTranslator)
+    if(NOT LLVMSpirvTranslator_POPULATED)
+      FetchContent_Populate(LLVMSpirvTranslator)
+      execute_process(COMMAND patch -N -p0 -c --fuzz=4 --ignore-whitespace -i llvm-spirv.patch ${llvmspirvtranslator_SOURCE_DIR}/lib/SPIRV/SPIRVInternal.h ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv.patch)
+      execute_process(COMMAND patch -d ${llvmspirvtranslator_SOURCE_DIR} --ignore-whitespace -i ${CMAKE_CURRENT_SOURCE_DIR}/spirv/llvm-spirv-cpack.patch)
+    endif()
+    
+    set(LLVM_SPIRV_BUILD_EXTERNAL ON)
+    set(llvm-spirv_TOOLS_INSTALL_DIR {LLVMSPIRV_RELATIVE_INSTALLDIR}/bin)
+    add_subdirectory(${llvmspirvtranslator_SOURCE_DIR} ${llvmspirvtranslator_BINARY_DIR})
+
+    # Install them to the desired relative path
+    install(TARGETS LLVMSPIRVLib COMPONENT ACPP DESTINATION ${LLVMSPIRV_RELATIVE_INSTALLDIR}/lib)
+    install(TARGETS llvm-spirv COMPONENT ACPP DESTINATION ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin)
+
     target_compile_definitions(llvm-to-spirv PRIVATE
       -DHIPSYCL_RELATIVE_LLVMSPIRV_PATH="${LLVMSPIRV_RELATIVE_PATH}")
-    
-    
   endif()
 
   if(WITH_LLVM_TO_PTX)
@@ -213,6 +214,7 @@ if(WITH_SSCP_COMPILER)
       TOOL ptx/LLVMToPtxTool.cpp)
 
     target_compile_definitions(llvm-to-ptx PRIVATE
+      -DHIPSYCL_CLANG_PATH="${CLANG_EXECUTABLE_PATH}" 
       -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
       -DACPP_CUDA_DEVICE_LIBS_PATH="${CUDA_DEVICE_LIBS_PATH}")
   endif()
@@ -232,6 +234,8 @@ if(WITH_SSCP_COMPILER)
       target_compile_definitions(llvm-to-amdgpu PRIVATE
         -DACPP_HIPCC_PATH="${HIPCC_PATH}")
     endif()
+    target_compile_definitions(llvm-to-amdgpu PRIVATE
+        -DACPP_CLANG_PATH="${CLANG_EXECUTABLE_PATH}")
 
     find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
    

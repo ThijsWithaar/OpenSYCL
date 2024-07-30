@@ -1,0 +1,11 @@
+{
+	"default-registry": null,
+	"registries": [
+	{
+		"kind": "git",
+		"repository": "https://github.com/ThijsWithaar/vcpkg",
+		"baseline": "96570da5f59279ad4e3a92e849e2df0bc15f9364",
+		"packages": ["*"]
+	}
+	]
+}

@@ -135,6 +135,12 @@ set(COMPILER_LIBRARY_SOURCES
   ${REFLECTION_BUILTINS}
 )
 
+if(WIN32)
+    target_compile_options(acpp-clang-cbs PUBLIC /bigobj)
+endif()
+
+install(TARGETS acpp-clang-cbs DESTINATION lib COMPONENT ACPP)
+
 if(NOT ACPP_LLVM_COMPONENT)
   add_library(${COMPILER_LIBRARY_NAME} MODULE
     ${COMPILER_LIBRARY_SOURCES}
@@ -215,19 +221,21 @@ function(configure_target)
   endif()
 
   if(WIN32 AND NOT ACPP_LLVM_COMPONENT)
-    set(CLANG_LIBRARY_DIR ${LLVM_PREFIX_DIR}/lib/)
-    target_link_directories(${target} PRIVATE ${CLANG_LIBRARY_DIR})
-    target_link_libraries(${target} PRIVATE clang LLVMSupport)
+    find_package(Clang CONFIG REQUIRED)
+    find_package(LLVM CONFIG REQUIRED)
+    llvm_map_components_to_libnames(llvm_libs Support)
+    target_link_libraries(${target} clangAST clangFrontend ${llvm_libs})
   endif()
-
+  
   if(ACPP_LLVM_COMPONENT)
     add_dependencies(${target} intrinsics_gen)
   endif()
 
-  install(TARGETS ${target}
+  install(TARGETS ${target} COMPONENT ACPP
           LIBRARY DESTINATION lib
           RUNTIME DESTINATION bin
-          ARCHIVE DESTINATION lib)
+          ARCHIVE DESTINATION lib
+          COMPONENT ACPP)
 endfunction(configure_target)
 
 if(ACPP_LLVM_COMPONENT)

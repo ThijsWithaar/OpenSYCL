@@ -59,6 +59,15 @@ add_library(acpp-rt SHARED
   pcuda/pcuda_thread_state.cpp
   pcuda/pcuda_event.cpp)
 
+message(NOTICE "## acpp-rt: ACPP_GENERATE_EXPORT_HEADERS ${ACPP_GENERATE_EXPORT_HEADERS}")
+if(ACPP_GENERATE_EXPORT_HEADERS)
+    include(GenerateExportHeader)
+    generate_export_header(acpp-rt EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/include/hipSYCL/accp_rt_export.h)
+    target_include_directories(acpp-rt PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/hipSYCL>)
+elseif(WIN32)
+    #set_target_properties(acpp-rt PROPERTIES IMPORTED_LOCATION "${BINARY_DIR}/acpp-rt.dll" IMPORTED_IMPLIB "${BINARY_DIR}/acpp-rt.lib")
+endif()
+
 target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
 target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} Threads::Threads)
 target_link_libraries(acpp-rt PUBLIC acpp-common)
@@ -104,12 +113,13 @@ if(is_ipo_supported)
   set_property(TARGET acpp-rt PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 
-install(TARGETS acpp-rt
+install(TARGETS acpp-rt COMPONENT ACPP
         EXPORT install_exports
         INCLUDES DESTINATION include/AdaptiveCpp
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        ARCHIVE DESTINATION lib
+        COMPONENT ACPP)
 
 set(CMAKE_INSTALL_RPATH ${base}/../ ${base}/llvm-to-backend)
 
@@ -146,7 +156,7 @@ if(WITH_CUDA_BACKEND)
     target_compile_options(rt-backend-cuda PRIVATE /EHs)
   endif()
 
-  install(TARGETS rt-backend-cuda
+  install(TARGETS rt-backend-cuda COMPONENT ACPP
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
@@ -196,7 +206,7 @@ if(WITH_ROCM_BACKEND)
     target_compile_options(rt-backend-hip PRIVATE /EHs)
   endif()
 
-  install(TARGETS rt-backend-hip
+  install(TARGETS rt-backend-hip COMPONENT ACPP
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
@@ -230,7 +240,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     target_compile_options(rt-backend-ze PRIVATE /EHs)
   endif()
 
-  install(TARGETS rt-backend-ze
+  install(TARGETS rt-backend-ze COMPONENT ACPP
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -285,7 +295,7 @@ if(WITH_OPENCL_BACKEND)
     target_compile_options(rt-backend-ocl PRIVATE /EHs)
   endif()
 
-  install(TARGETS rt-backend-ocl
+  install(TARGETS rt-backend-ocl COMPONENT ACPP
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
 endif()
@@ -334,8 +344,8 @@ if(WITH_CPU_BACKEND)
       set(hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES} PARENT_SCOPE)
     endif()
 
-    list(LENGTH OpenMP_CXX_LIBRARIES OpenMP_CXX_LIBRARIES_LENGTH)
-    if(WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
+  list(LENGTH OpenMP::OpenMP_CXX OpenMP_CXX_LIBRARIES_LENGTH)
+  if(FALSE) #WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
       # FindOpenMP does a bad job here, finding any library.. so add some more hints..
       find_library(hipSYCL_OpenMP_libomp_LIBRARY
         NAMES libomp libgomp libiomp5 HINTS
@@ -382,9 +392,10 @@ if(WITH_CPU_BACKEND)
     target_compile_options(rt-backend-omp PRIVATE /EHs)
   endif()
 
-  install(TARGETS rt-backend-omp
+  install(TARGETS rt-backend-omp COMPONENT ACPP
       RUNTIME DESTINATION bin/hipSYCL
       LIBRARY DESTINATION lib/hipSYCL
-      ARCHIVE DESTINATION lib/hipSYCL)
+      ARCHIVE DESTINATION lib/hipSYCL
+      COMPONENT ACPP)
 endif()
 

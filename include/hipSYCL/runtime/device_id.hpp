@@ -16,6 +16,12 @@
 #include <ostream>
 #include <cstdint>
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -44,7 +50,7 @@ enum class backend_id {
   omp
 };
 
-struct backend_descriptor
+struct ACPP_RT_EXPORT backend_descriptor
 {
   backend_id id;
   hardware_platform hw_platform;
@@ -78,7 +84,7 @@ struct backend_descriptor
   }
 };
 
-class device_id
+class ACPP_RT_EXPORT device_id
 {
 public:
   device_id() = default;
