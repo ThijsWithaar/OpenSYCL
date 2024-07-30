@@ -8,6 +8,9 @@ build*/
 # clion etc in-source configs
 .idea/
 
+# Visual Studio
+.vs/
+
 # Prerequisites
 *.d
 

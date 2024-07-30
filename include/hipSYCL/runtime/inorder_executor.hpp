@@ -17,6 +17,12 @@
 #include "hipSYCL/runtime/operations.hpp"
 #include "inorder_queue.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -25,7 +31,7 @@ namespace rt {
 ///
 /// This class is thread-safe, provided that the underlying
 /// inorder_queue is thread-safe.
-class inorder_executor : public backend_executor
+class ACPP_RT_EXPORT inorder_executor : public backend_executor
 {
 public:
   inorder_executor(std::unique_ptr<inorder_queue> q);

@@ -18,12 +18,19 @@
 #include <functional>
 #include <queue>
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
+class ACPP_RT_EXPORT std::thread;
 
 namespace hipsycl {
 namespace rt {
 
 /// A worker thread that processes a queue in the background.
-class worker_thread
+class ACPP_RT_EXPORT worker_thread
 {
 public:
   using async_function = std::function<void ()>;

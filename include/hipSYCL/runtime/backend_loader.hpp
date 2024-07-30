@@ -16,8 +16,14 @@
 #include <vector>
 #include <utility>
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl::rt {
-class backend;
+class ACPP_RT_EXPORT backend;
 }
 
 #ifndef _WIN32
@@ -36,7 +42,7 @@ const char* hipsycl_backend_plugin_get_name();
 namespace hipsycl {
 namespace rt {
 
-class backend_loader {
+class ACPP_RT_EXPORT backend_loader {
 public:
   ~backend_loader();
 

@@ -3,7 +3,14 @@ add_library(acpp-common SHARED
     filesystem.cpp
     appdb.cpp)
 
+if(ACPP_GENERATE_EXPORT_HEADERS)
+    include(GenerateExportHeader)
+    generate_export_header(acpp-common EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/include/hipSYCL/accp_common_export.h)
+    target_include_directories(acpp-common PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/hipSYCL>)
+endif()
+
 install(TARGETS acpp-common DESTINATION lib COMPONENT ACPP)
+install(DIRECTORY ${CMAKE_BINARY_DIR}/include/ DESTINATION include COMPONENT ACPP)
 
 target_include_directories(acpp-common
   PUBLIC
@@ -12,6 +19,7 @@ target_include_directories(acpp-common
   PRIVATE
     ${HIPSYCL_SOURCE_DIR}
     ${PROJECT_BINARY_DIR}/include
+    ${CMAKE_BINARY_DIR}/exports
 )
 
 target_link_libraries(acpp-common PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
@@ -26,7 +34,9 @@ list(REMOVE_AT CMAKE_MODULE_PATH 0)
 # to get the search path we need to know the output name, so set it explicitly.
 set(HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME "acpp-common")
 if(WIN32)
-  set_target_properties(acpp-common PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  if(NOT ACPP_GENERATE_EXPORT_HEADERS)
+    set_target_properties(acpp-common PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  endif()
 
   # ensure actual output and expected are equivalent
   set_target_properties(acpp-common PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME})

@@ -149,7 +149,7 @@ bool atomic_write(const std::string &filename, const std::string &data) {
 bool remove(const std::string &filename) {
   try {
     return fs::remove(filename);
-  } catch (const fs::filesystem_error &err) {}
+  } catch (const fs::filesystem_error &) {}
   return false;
 }
 

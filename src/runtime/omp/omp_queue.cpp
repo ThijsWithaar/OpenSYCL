@@ -221,11 +221,11 @@ launch_kernel_from_so(omp_sscp_executable_object::omp_sscp_kernel *kernel,
 #ifdef _OPENMP
 #pragma omp for collapse(3)
 #endif
-    for (std::size_t k = 0; k < num_groups.get(2); ++k) {
+    for (int k = 0; k < num_groups.get(2); ++k) {
       for (std::size_t j = 0; j < num_groups.get(1); ++j) {
         for (std::size_t i = 0; i < num_groups.get(0); ++i) {
           omp_sscp_executable_object::work_group_info info{
-              num_groups, rt::id<3>{i, j, k}, local_size, aligned_local_memory};
+              num_groups, rt::id < 3 > {i, j, std::size_t(k)}, local_size, aligned_local_memory };
           kernel(&info, kernel_args);
         }
       }

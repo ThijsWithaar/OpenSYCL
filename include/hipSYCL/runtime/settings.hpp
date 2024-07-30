@@ -21,6 +21,13 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -47,7 +54,7 @@ bool device_matches(const visibility_mask_t::mapped_type &visibility_conditions,
                     int global_device_index, int platform_device_index,
                     int platform_index, const std::string &dev_name,
                     const std::string &platform_name);
-bool has_device_visibility_mask(const visibility_mask_t& mask, backend_id backend);
+bool ACPP_RT_EXPORT has_device_visibility_mask(const visibility_mask_t& mask, backend_id backend);
 
 std::istream &operator>>(std::istream &istr, scheduler_type &out);
 std::istream &operator>>(std::istream &istr, visibility_mask_t &out);

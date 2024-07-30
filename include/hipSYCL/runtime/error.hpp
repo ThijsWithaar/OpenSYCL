@@ -19,6 +19,12 @@
 
 #include "hipSYCL/common/debug.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -101,7 +107,7 @@ private:
 
 class error_info {
 public:
-  using errc_type = class error_code;
+  using errc_type = class rt::error_code;
 
   error_info() = default;
 
@@ -123,7 +129,7 @@ private:
   error_type _etype;
 };
 
-class result {
+class ACPP_RT_EXPORT result {
 public:
   // constructs success result
   result() = default;
@@ -169,9 +175,9 @@ inline result make_error(
 }
 
 // Construct an error object and register in the error queue
-result register_error(
+result ACPP_RT_EXPORT register_error(
     const source_location &origin, const error_info &info);
-void register_error(const result& err);
+void ACPP_RT_EXPORT register_error(const result& err);
 
 inline void print_result(const result& res, bool warn_only = false){
 

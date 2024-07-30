@@ -18,6 +18,11 @@
 
 #include "appdb.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_common_export.h>
+#else
+#define ACPP_COMMON_EXPORT
+#endif
 
 namespace hipsycl {
 namespace common {

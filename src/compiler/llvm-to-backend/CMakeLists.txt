@@ -26,16 +26,22 @@ function(create_llvm_based_library)
   target_include_directories(${target} PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
   target_include_directories(${target} SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
-
+  
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   target_compile_definitions(${target} PRIVATE
     ${LLVM_DEFINITIONS_LIST})
   target_compile_definitions(${target} PRIVATE -DHIPSYCL_COMPILER_COMPONENT)
-  find_library(LLVM_LIBRARY NAMES LLVM LLVM-${LLVM_VERSION_MAJOR} HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
-  if(NOT LLVM_LIBRARY)
-    message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
+  if(DEFINED VCPKG_TARGET_TRIPLET)
+    find_package(LLVM CONFIG REQUIRED)
+    llvm_map_components_to_libnames(llvm_libs Core Support IRReader Passes)
+    target_link_libraries(${target} PRIVATE ${llvm_libs})
+  else()
+      find_library(LLVM_LIBRARY NAMES LLVM HINTS ${LLVM_LIBRARY_DIRS} NO_DEFAULT_PATH)
+      if(NOT LLVM_LIBRARY)
+        message(FATAL_ERROR "LLVM at ${LLVM_DIR} does not have libLLVM.so. Please disable SSCP and related backends (-DWITH_SSCP_COMPILER=OFF -DWITH_OPENCL_BACKEND=OFF -DWITH_LEVEL_ZERO_BACKEND=OFF) or choose another LLVM installation")
+      endif()
+      llvm_config(${target} USE_SHARED core support irreader passes)
   endif()
-  llvm_config(${target} USE_SHARED core support irreader passes)
   # We need symbolic functions for stdpar
   target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 

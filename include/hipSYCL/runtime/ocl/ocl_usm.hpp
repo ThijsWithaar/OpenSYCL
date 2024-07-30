@@ -18,7 +18,7 @@
 namespace hipsycl {
 namespace rt {
 
-struct ocl_hardware_manager;
+class ocl_hardware_manager;
 
 class ocl_usm {
 public:

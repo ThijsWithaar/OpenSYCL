@@ -49,6 +49,15 @@ add_library(acpp-rt SHARED
   hw_model/memcpy.cpp
   serialization/serialization.cpp)
 
+message(NOTICE "## acpp-rt: ACPP_GENERATE_EXPORT_HEADERS ${ACPP_GENERATE_EXPORT_HEADERS}")
+if(ACPP_GENERATE_EXPORT_HEADERS)
+    include(GenerateExportHeader)
+    generate_export_header(acpp-rt EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/include/hipSYCL/accp_rt_export.h)
+    target_include_directories(acpp-rt PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/include/hipSYCL>)
+elseif(WIN32)
+    #set_target_properties(acpp-rt PROPERTIES IMPORTED_LOCATION "${BINARY_DIR}/acpp-rt.dll" IMPORTED_IMPLIB "${BINARY_DIR}/acpp-rt.lib")
+endif()
+
 target_compile_options(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
 target_link_libraries(acpp-rt PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS} acpp-common Threads::Threads)
 
@@ -66,7 +75,9 @@ target_include_directories(acpp-rt
 # to get the search path next to the rt lib, we need to know the output name, so set it explicitly.
 set(HIPSYCL_RT_LIBRARY_OUTPUT_NAME "acpp-rt")
 if(WIN32)
-  set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  if(NOT ACPP_GENERATE_EXPORT_HEADERS)
+    set_target_properties(acpp-rt PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
+  endif()
 
   # ensure actual output and expected are equivalent
   set_target_properties(acpp-rt PROPERTIES RUNTIME_OUTPUT_NAME ${HIPSYCL_RT_LIBRARY_OUTPUT_NAME})
@@ -319,8 +330,8 @@ if(WITH_CPU_BACKEND)
       set(hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES} PARENT_SCOPE)
     endif()
   
-  list(LENGTH OpenMP_CXX_LIBRARIES OpenMP_CXX_LIBRARIES_LENGTH)
-  if(WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
+  list(LENGTH OpenMP::OpenMP_CXX OpenMP_CXX_LIBRARIES_LENGTH)
+  if(FALSE) #WIN32 AND ${OpenMP_CXX_LIBRARIES_LENGTH} EQUAL 0)
     # FindOpenMP does a bad job here, finding any library.. so add some more hints..
     find_library(hipSYCL_OpenMP_libomp_LIBRARY
       NAMES libomp libgomp libiomp5 HINTS

@@ -124,7 +124,7 @@ bool device_matches(const visibility_mask_t &mask, backend_id backend,
                         platform_index, dev_name, platform_name);
 }
 
-bool has_device_visibility_mask(const visibility_mask_t& mask, backend_id backend) {
+bool ACPP_RT_EXPORT has_device_visibility_mask(const visibility_mask_t& mask, backend_id backend) {
   auto it = mask.find(backend);
   if(it != mask.end()) {
     return it->second.size() > 0;

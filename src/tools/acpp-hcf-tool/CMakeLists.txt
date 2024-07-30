@@ -5,4 +5,6 @@ target_include_directories(acpp-hcf-tool PRIVATE
     ${HIPSYCL_SOURCE_DIR}/include
     ${PROJECT_BINARY_DIR}/include)
 
+target_link_libraries(acpp-hcf-tool PRIVATE acpp-rt)
+
 install(TARGETS acpp-hcf-tool COMPONENT ACPP DESTINATION bin)

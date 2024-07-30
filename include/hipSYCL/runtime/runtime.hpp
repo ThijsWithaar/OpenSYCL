@@ -18,10 +18,17 @@
 #include <memory>
 #include <iostream>
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
+
 namespace hipsycl {
 namespace rt {
 
-class runtime
+class ACPP_RT_EXPORT runtime
 {
 public:
 

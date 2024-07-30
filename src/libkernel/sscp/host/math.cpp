@@ -8,6 +8,8 @@
  * See file LICENSE in the project root for full license details.
  */
 // SPDX-License-Identifier: BSD-2-Clause
+
+#define _USE_MATH_DEFINES
 #include <math.h>
 
 #include "hipSYCL/sycl/libkernel/sscp/builtins/builtin_config.hpp"
@@ -90,7 +92,9 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(erf)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(erfc)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(exp)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(exp2)
+#if !defined(_MSC_VER)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(exp10)
+#endif
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2(pow)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(expm1)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(fabs)
@@ -180,12 +184,20 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(lgamma)
 
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_lgamma_r_f32(float x, __acpp_int32* y ) {
+#if !defined(_MSC_VER)
   return lgammaf_r(x,y);
+#else
+  return NAN;
+#endif
 }
 
 HIPSYCL_SSCP_BUILTIN double __acpp_sscp_lgamma_r_f64(double x, __acpp_int64* y) {
   __acpp_int32 w;
+#if !defined(_MSC_VER)
   auto res = lgamma_r(x,&w);
+#else
+  double res = NAN;
+#endif
   *y = w;
   return res;
 }
@@ -197,9 +209,10 @@ HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(log1p)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN(logb)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN3_NAME(mad,fmaf,fma)
 
+#if !defined(_MSC_VER)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(maxmag,fmaxmagf,fmaxmag)
 HIPSYCL_SSCP_MAP_HOST_FLOAT_BUILTIN2_NAME(minmag,fmaxmagf,fmaxmag)
-
+#endif
 
 HIPSYCL_SSCP_BUILTIN float __acpp_sscp_modf_f32(float x, float* y ) {
   return modff(x, y);

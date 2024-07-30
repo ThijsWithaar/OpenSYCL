@@ -19,6 +19,12 @@
 #include "device_id.hpp"
 #include "backend_loader.hpp"
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -26,7 +32,7 @@ class backend_executor;
 class backend_allocator;
 class backend_hardware_manager;
 class hw_model;
-class kernel_cache;
+class ACPP_RT_EXPORT kernel_cache;
 
 class backend
 {
@@ -60,7 +66,7 @@ public:
   create_inorder_executor(device_id dev, int priority) = 0;
 };
 
-class backend_manager
+class ACPP_RT_EXPORT backend_manager
 {
 public:
   using backend_list_type =

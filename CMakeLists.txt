@@ -14,6 +14,20 @@ execute_process(
         RESULT_VARIABLE GIT_STATUS
 )
 
+if(WIN32)
+    # Two methods to export symbols to a .dll: export all, or specific ones
+    #set(CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS 1)
+    if(FALSE) #CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS)
+        #add_compile_definitions(ACPP_RT_EXPORT)
+    else()
+        set(ACPP_GENERATE_EXPORT_HEADERS On)
+        add_compile_definitions(ACPP_GENERATE_EXPORT_HEADERS)
+    endif()
+    add_compile_options("/arch:AVX2")
+    add_compile_definitions(NOMINMAX)
+    add_definitions("/wd4996 /wd4267 /wd4244 /wd4305 /wd4018 /wd4251")
+endif()
+
 if(NOT ACPP_VERSION_SUFFIX)
   # With a release tarball, "git status" will fail (return non zero)
   if(GIT_STATUS)
@@ -279,7 +293,9 @@ if(BUILD_CLANG_PLUGIN)
   message(STATUS "Building hipSYCL against LLVM configured from ${LLVM_DIR}")
   #find_package(Clang REQUIRED)
 
-  find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
+  message(NOTICE "## LLVM_TOOLS_BINARY_DIR ${LLVM_TOOLS_BINARY_DIR}")
+  find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ clang++.exe HINTS ${LLVM_TOOLS_BINARY_DIR} NO_DEFAULT_PATH CACHE STRING)
+  message(NOTICE "## CLANG_EXECUTABLE_PATH ${CLANG_EXECUTABLE_PATH}")
   if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")
     find_program(CLANG_EXECUTABLE_PATH NAMES clang++-${LLVM_VERSION_MAJOR} clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR} clang++ CACHE STRING)
     if(CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND")

@@ -1,0 +1,19 @@
+{
+	"$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+	"name": "adaptivecpp",
+	"version": "24.6.0",
+	"dependencies": [
+		"boost-context",
+		"boost-fiber",
+		"boost-test",
+		{
+			"name": "llvm",
+			"default-features": false,
+			"features": ["clang", "lld", "enable-rtti", "export-symbols", "target-x86", "target-nvptx"]
+		},
+		"opencl",
+		"python3",
+		"spirv-headers",
+		"spirv-tools"
+	]
+}

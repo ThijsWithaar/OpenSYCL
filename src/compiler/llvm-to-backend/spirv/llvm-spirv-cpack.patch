@@ -12,6 +12,17 @@
  endif(LLVM_SPIRV_BUILD_EXTERNAL)
 
  # Download spirv.hpp from the official SPIRV-Headers repository.
+@@ -117,8 +120,8 @@
+ if (NOT SPIRV_TOOLS_FOUND)
+   # then try locating SPIRV-Tools via cmake (the new way)
+   find_package(SPIRV-Tools)
+-  find_package(SPIRV-Tools-tools)
+-  if (SPIRV-Tools_FOUND AND SPIRV-Tools-tools_FOUND)
++  #find_package(SPIRV-Tools-tools)
++  if (SPIRV-Tools_FOUND)
+     set(SPIRV_TOOLS_FOUND TRUE)
+     # check for the existance of library targets in the found packages
+     if(TARGET SPIRV-Tools-shared)
 @@ -154,7 +154,8 @@
      ${LLVM_SPIRV_INCLUDE_DIRS}/LLVMSPIRVOpts.h
      ${LLVM_SPIRV_INCLUDE_DIRS}/LLVMSPIRVExtensions.inc

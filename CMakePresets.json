@@ -60,21 +60,27 @@
 			}
 		},
 		{
-			"name": "debug-win",
-			"hidden": false,
-			"generator": "Ninja",
-			"architecture": {
-				"value": "x64",
-				"strategy": "external"
-			},
-			"binaryDir": "${sourceDir}/build.win/${presetName}",
-			"installDir": "${sourceDir}/build.win/install/${presetName}",
+			"name": "release-win",
+			"binaryDir": "$env{BUILD_PATH}/${presetName}",
 			"cacheVariables": {
-				"CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-				"WITH_SSCP_COMPILER": "ON",
-				"CUDA_TOOLKIT_ROOT_DIR": "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.4",
+				// Use same llvm version for compiler and as llvm library
+				"CMAKE_C_COMPILER": "$env{VCPKG_PATH}/installed/x64-windows-release/tools/llvm/clang.exe",
+				"CMAKE_CXX_COMPILER": "$env{VCPKG_PATH}/installed/x64-windows-release/tools/llvm/clang++.exe",
+				"LLVM_LIBRARY_DIRS" : "$env{VCPKG_PATH}/installed/x64-windows-release/lib",
+				"LLVM_TOOLS_BINARY_DIR" : "$env{VCPKG_PATH}/installed/tools/x64-windows-release/llvm",
+				"LLVM_VERSION_MAJOR" : "18",
+				// "LLVM_DIR" : "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/lib/cmake/llvm",
+				// "LLVM_TOOLS_BINARY_DIR" : "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin",
+				"CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_PATH}/scripts/buildsystems/vcpkg.cmake",
+				"CMAKE_BUILD_TYPE": "Release",
+				"VCPKG_TARGET_TRIPLET": "x64-windows-release",
+				"VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/vcpkg_triplets",
+				// "CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS" : "TRUE",
+				"CUDA_TOOLKIT_ROOT_DIR": "$env{CUDA_PATH}",
+				"ACPP_COMPILER_FEATURE_PROFILE": "minimal",
 				"WITH_CUDA_BACKEND": "ON",
-				"CPACK_GENERATOR": "ZIP;NSIS"
+				"WITH_OPENCL_BACKEND": "OFF",
+				"CPACK_GENERATOR": "ZIP"
 			},
 			"condition": {
 				"type": "equals",

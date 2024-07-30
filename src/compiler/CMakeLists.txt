@@ -83,6 +83,10 @@ add_library(acpp-clang SHARED
   ${REFLECTION_BUILTINS}
 )
 
+if(WIN32)
+    target_compile_options(acpp-clang PUBLIC /bigobj)
+endif()
+
 install(TARGETS acpp-clang DESTINATION lib COMPONENT ACPP)
 
 function(configure_target)
@@ -126,9 +130,10 @@ function(configure_target)
     ${LLVM_LIBS})
 
   if(WIN32)
-    set(CLANG_LIBRARY_DIR ${LLVM_PREFIX_DIR}/lib/)
-    target_link_directories(${target} PRIVATE ${CLANG_LIBRARY_DIR})
-    target_link_libraries(${target} clang LLVMSupport)
+    find_package(Clang CONFIG REQUIRED)
+    find_package(LLVM CONFIG REQUIRED)
+    llvm_map_components_to_libnames(llvm_libs Support)
+    target_link_libraries(${target} clangAST clangFrontend ${llvm_libs})
   endif()
 
   install(TARGETS ${target} COMPONENT ACPP
@@ -150,7 +155,6 @@ endif()
 if(APPLE)
   target_link_libraries(acpp-clang -Wl,-undefined -Wl,dynamic_lookup)
 elseif(WIN32)
-  set_target_properties(acpp-clang PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS On)
 else()
   target_link_libraries(acpp-clang -Wl,-znodelete)
 endif()

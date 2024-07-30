@@ -21,6 +21,13 @@
 
 #include "hipSYCL/runtime/kernel_configuration.hpp"
 
+
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_common_export.h>
+#else
+#define ACPP_COMMON_EXPORT
+#endif
+
 namespace hipsycl::common::db {
 
 struct kernel_arg_value_statistics {

@@ -27,6 +27,12 @@
 #ifndef HIPSYCL_RT_KERNEL_CACHE_HPP
 #define HIPSYCL_RT_KERNEL_CACHE_HPP
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -171,7 +177,7 @@ private:
 // in the SSCP format.
 //
 // This class is thread-safe.
-class hcf_cache {
+class ACPP_RT_EXPORT hcf_cache {
 public:
   static hcf_cache& get();
 
@@ -253,7 +259,7 @@ private:
   mutable std::mutex _mutex;
 };
 
-class kernel_cache {
+class ACPP_RT_EXPORT kernel_cache {
 public:
   using code_object_id = kernel_configuration::id_type;
   using code_object_ptr = std::unique_ptr<const code_object>;

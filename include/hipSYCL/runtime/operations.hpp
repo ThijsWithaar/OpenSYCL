@@ -32,6 +32,12 @@
 #include <memory>
 #include <ostream>
 
+#ifdef ACPP_GENERATE_EXPORT_HEADERS
+#include <accp_rt_export.h>
+#else
+#define ACPP_RT_EXPORT
+#endif
+
 namespace hipsycl {
 namespace rt {
 
@@ -62,7 +68,7 @@ public:
   virtual ~operation_dispatcher(){}
 };
 
-class operation
+class ACPP_RT_EXPORT operation
 {
 public:
   operation() = default;
@@ -87,7 +93,7 @@ private:
 };
 
 
-class requirement : public operation
+class ACPP_RT_EXPORT requirement : public operation
 {
 public:
   virtual bool is_memory_requirement() const = 0;
@@ -107,7 +113,7 @@ public:
   virtual ~requirement(){}
 };
 
-class memory_requirement : public requirement
+class ACPP_RT_EXPORT memory_requirement : public requirement
 {
 public:
   virtual ~memory_requirement() {}
@@ -330,7 +336,7 @@ private:
 class requirements_list;
 
 
-class kernel_operation : public operation
+class ACPP_RT_EXPORT kernel_operation : public operation
 {
 public:
   kernel_operation(
@@ -423,7 +429,7 @@ private:
 // representations of memory locations. This is because,
 // due to lazy allocation, we may not have allocated
 // the target memcpy location, so we cannot know it in general.
-class memory_location
+class ACPP_RT_EXPORT memory_location
 {
 public:
   memory_location(device_id d, id<3> access_offset,
@@ -466,7 +472,7 @@ private:
 };
 
 /// An explicit memory operation
-class memcpy_operation : public operation
+class ACPP_RT_EXPORT memcpy_operation : public operation
 {
 public:
   memcpy_operation(const memory_location &source, const memory_location &dest,
