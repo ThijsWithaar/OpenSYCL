@@ -142,8 +142,7 @@ getLocalSizeArgumentFromAnnotation(llvm::Function &F) {
             if (auto *Data =
                     llvm::dyn_cast<llvm::ConstantDataSequential>(AnnotateStr->getInitializer())) {
               if (Data->isString() &&
-		  hipsycl::llvmutils::starts_with(Data->getAsString(),
-						  "hipsycl_nd_kernel_local_size_arg")) {
+                  Data->getAsString().starts_with("hipsycl_nd_kernel_local_size_arg")) {
                 if (auto *BC = llvm::dyn_cast<llvm::BitCastInst>(UI->getOperand(0)))
                   return {BC->getOperand(0), UI};
                 return {UI->getOperand(0), UI};
@@ -1310,7 +1309,6 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG());
 
   Body = Body->getSingleSuccessor();
-
 
   llvm::SmallVector<llvm::BasicBlock *, 4> ExitBBs;
   llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(F.getContext(), "exit", &F);

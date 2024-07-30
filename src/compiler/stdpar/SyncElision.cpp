@@ -133,8 +133,8 @@ bool instructionAccessesMemory(llvm::Instruction* I) {
 bool functionDoesNotAccessMemory(llvm::Function* F){
   if(!F)
     return true;
-  if(F->isIntrinsic()) {
-    if(llvmutils::starts_with(F->getName(), "llvm.lifetime")){
+  if (F->isIntrinsic()) {
+    if (F->getName().starts_with("llvm.lifetime")) {
       return true;
     }
   }
