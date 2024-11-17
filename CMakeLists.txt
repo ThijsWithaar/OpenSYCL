@@ -362,16 +362,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
-set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL 
-  "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
-
-if(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION)
-  set(ACPP_CONFIG_FILE_INSTALL_DIR /etc/AdaptiveCpp/)
-else()
-  set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
-endif()
-
 if(Boost_FIBER_LIBRARY_DEBUG)
   get_filename_component(Boost_LIBRARY_DIR "${Boost_FIBER_LIBRARY_DEBUG}" DIRECTORY)
 elseif(Boost_FIBER_LIBRARY_RELEASE)
@@ -550,6 +540,8 @@ endif()
 
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
+include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
 set(ACPP_CORE_CONFIG_FILE "{
   \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
@@ -592,14 +584,20 @@ set(ACPP_ROCM_CONFIG_FILE "{
 }
 ")
 
-file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-core.json ${ACPP_CORE_CONFIG_FILE})
+# The destination path is different between 'cmake install' and CPack,
+# and only known when the install script is run.
+# Prepare all files in ${PROJECT_BINARY_DIR}/etc, then copy them over with an install script
+file(WRITE "${PROJECT_BINARY_DIR}/etc/AdaptiveCpp/acpp-core.json" "${ACPP_CORE_CONFIG_FILE}")
 if(WITH_CUDA_BACKEND)
-  file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-cuda.json ${ACPP_CUDA_CONFIG_FILE})
+  file(WRITE "${PROJECT_BINARY_DIR}/etc/AdaptiveCpp/acpp-cuda.json" "${ACPP_CUDA_CONFIG_FILE}")
 endif()
 if(WITH_ROCM_BACKEND)
-  file(WRITE ${ACPP_CONFIG_FILE_PATH}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
+  file(WRITE "${PROJECT_BINARY_DIR}/etc/AdaptiveCpp/acpp-rocm.json" "${ACPP_ROCM_CONFIG_FILE}")
 endif()
-
+# Inject variables into the script:
+install(CODE "set(PROJECT_BINARY_DIR \"${PROJECT_BINARY_DIR}\")")
+install(CODE "set(CMAKE_COMMAND \"${CMAKE_COMMAND}\")")
+install(SCRIPT ${CMAKE_SOURCE_DIR}/cmake/InstallSysconf.cmake)
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -614,25 +612,12 @@ install(DIRECTORY include/hipSYCL/std COMPONENT ACPP DESTINATION include/Adaptiv
 install(FILES ${PROJECT_BINARY_DIR}/include/hipSYCL/common/config.hpp COMPONENT ACPP DESTINATION include/AdaptiveCpp/hipSYCL/common/)
 
 if(NOT WIN32)
-# Windows is case-insensitive, so don't copy to sycl/sycl.hpp as
-# we already have SYCL/sycl.hpp
-install(FILES include/SYCL/sycl.hpp COMPONENT ACPP DESTINATION include/AdaptiveCpp/sycl/)
+  # Windows is case-insensitive, so don't copy to sycl/sycl.hpp as we already have SYCL/sycl.hpp
+  install(FILES include/SYCL/sycl.hpp COMPONENT ACPP DESTINATION include/AdaptiveCpp/sycl/)
 endif()
 install(PROGRAMS bin/acpp COMPONENT ACPP DESTINATION bin)
 install(PROGRAMS bin/acpp COMPONENT ACPP DESTINATION bin RENAME syclcc)
 install(PROGRAMS bin/acpp COMPONENT ACPP DESTINATION bin RENAME syclcc-clang)
-
-
-install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-core.json COMPONENT ACPP DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-if(WITH_CUDA_BACKEND)
-  install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-cuda.json COMPONENT ACPP DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-if(WITH_ROCM_BACKEND)
-  install(FILES ${ACPP_CONFIG_FILE_PATH}/acpp-rocm.json COMPONENT ACPP DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-
-include(CMakePackageConfigHelpers)
-include(GNUInstallDirs)
 
 
 # Legacy module (hipSYCL)
@@ -801,11 +786,6 @@ install(EXPORT install_exports
   COMPONENT ACPP
   DESTINATION ${ADAPTIVECPP_INSTALL_CMAKE_DIR}
 )
-
-if(UNIX)
-  file(WRITE ${PROJECT_BINARY_DIR}/30-adaptivecpp.conf "${CMAKE_INSTALL_PREFIX}/lib/hipSYCL\n")
-  install(FILES ${PROJECT_BINARY_DIR}/30-adaptivecpp.conf COMPONENT ACPP DESTINATION /etc/ld.so.conf.d)
-endif()
 
 mark_as_advanced(
   ADAPTIVECPP_INSTALL_CMAKE_DIR
