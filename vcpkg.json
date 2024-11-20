@@ -6,6 +6,7 @@
 		"boost-context",
 		"boost-fiber",
 		"boost-test",
+		"fmt",
 		{
 			"name": "llvm",
 			"default-features": false,

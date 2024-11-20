@@ -631,9 +631,6 @@ if(NOT WIN32)
   # Windows is case-insensitive, so don't copy to sycl/sycl.hpp as we already have SYCL/sycl.hpp
   install(FILES include/SYCL/sycl.hpp COMPONENT ACPP DESTINATION include/AdaptiveCpp/sycl/)
 endif()
-install(PROGRAMS bin/acpp COMPONENT ACPP DESTINATION bin)
-install(PROGRAMS bin/acpp COMPONENT ACPP DESTINATION bin RENAME syclcc)
-install(PROGRAMS bin/acpp COMPONENT ACPP DESTINATION bin RENAME syclcc-clang)
 
 
 # Legacy module (hipSYCL)
