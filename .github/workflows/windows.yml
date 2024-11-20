@@ -1,90 +1,39 @@
-name: Windows build and test
+name: Windows build
 
-on: [push, pull_request]
+on: [workflow_dispatch]
+
+env:
+  BUILD_PATH: ${{github.workspace}}
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  VCPKG_ROOT: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\vcpkg"
 
 jobs:
   test:
-    name: clang ${{ matrix.clang }}
+    name: windows vcpkg
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        clang: [17]
         os: [windows-2022]
     steps:
+
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
 
-    - name: Cache Boost
-      id: cache-boost
-      uses: actions/cache@v4
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
       with:
-        path: ${{github.workspace}}/boost_1_81_0
-        key: ${{runner.os}}-boost1810
+      script: |
+         core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+         core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-    - name: Cache LLVM ${{matrix.clang}}
-      id: cache-llvm
-      uses: actions/cache@v4
-      with:
-        path: ${{github.workspace}}/llvm
-        key: ${{runner.os}}-llvm-${{matrix.clang}}
-
-    - name: Download Ninja
-      shell: powershell
+    - name: Compile LLVM
+      shell: cmd
       run: |
-        $ninjaURL = "https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip"
-        Invoke-WebRequest $ninjaURL -OutFile ninja.zip
-        Expand-Archive -Path ninja.zip -DestinationPath $env:GITHUB_WORKSPACE\ninja_install
-
-    - name: Install MinGW LLVM ${{matrix.clang}}
-      if: steps.cache-llvm.outputs.cache-hit != 'true'
-      shell: powershell
-      run: |
-        $llvmURL = "https://github.com/mstorsjo/llvm-mingw/releases/download/20231128/llvm-mingw-20231128-msvcrt-x86_64.zip"
-        $llvmFolderName = $llvmUrl.Split("/")[-1].Split(".")[0]
-        Invoke-WebRequest $llvmURL -OutFile $env:GITHUB_WORKSPACE\llvm.zip
-        Expand-Archive $env:GITHUB_WORKSPACE\llvm.zip
-        Move-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName\* $env:GITHUB_WORKSPACE\llvm
-        Remove-Item $env:GITHUB_WORKSPACE\llvm\$llvmFolderName
-
-    - name: Build boost
-      if: steps.cache-boost.outputs.cache-hit != 'true'
-      shell: powershell
-      run: |
-        $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
-        $boostURL = "https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.7z"
-        $boostFolderName = $boostUrl.Split("/")[-1].Split(".")[0]
-        Invoke-WebRequest $boostURL -OutFile boost.7z
-        7z.exe x boost.7z
-        cd $boostFolderName
-        .\bootstrap.bat clang
-        .\b2.exe --with-context --with-fiber --with-atomic --with-filesystem --with-test toolset=clang address-model=64 variant=release --build-type=complete stage
+        vcpkg.exe install --triplet x64-windows-release --overlay-triplets=%GITHUB_WORKSPACE%/cmake/vcpkg_triplets --x-install-root=%BUILD_PATH%/release-win/vcpkg_installed
 
     - name: Build AdaptiveCpp
-      shell: powershell
+      shell: cmd
       run: |
-         $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
-         $env:PATH = "$env:GITHUB_WORKSPACE\ninja_install;$env:PATH"
-
-         cd $env:GITHUB_WORKSPACE
-         md build
-         cd build
-
-         cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE/acpp_install" -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64
-         ninja install
-         
-    - name: Build and run CPU tests
-      shell: powershell
-      run: |
-        $env:PATH = "$env:GITHUB_WORKSPACE\llvm\bin;$env:PATH"
-        $env:PATH = "$env:GITHUB_WORKSPACE\ninja_install;$env:PATH"
-        $env:PATH = "$env:GITHUB_WORKSPACE\acpp_install\bin;$env:PATH"
-
-        cd $env:GITHUB_WORKSPACE\tests
-        md build
-        cd build
-        cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DACPP_TARGETS=omp -DBOOST_ROOT="$env:GITHUB_WORKSPACE/boost_1_81_0" -DBoost_COMPILER=-clang17 -DBoost_ARCHITECTURE=-x64 -DAdaptiveCpp_DIR="$env:GITHUB_WORKSPACE\acpp_install\lib\cmake\AdaptiveCpp"
-        ninja
-
-        .\sycl_tests
-        .\rt_tests
+        cmake.exe --preset release-win
+        cmake.exe --build --preset default --target package
